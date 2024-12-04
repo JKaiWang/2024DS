@@ -1,16 +1,6 @@
 #include<stdio.h>
 #include<stdlib.h>
 #define MAX 10000
-/*
-Heap: (MinHeap or MaxHeap)
-    Operation:
-        isEmpty()   Time Complexity: O(1)
-        Top()       Time Complexity: O(1)
-        Push()      Time Complexity: O(log N)
-        Pop()       Time Complexity: O(log N)
-    
-
-*/
 struct MinHeap{
     int *array;
     int capacity;
