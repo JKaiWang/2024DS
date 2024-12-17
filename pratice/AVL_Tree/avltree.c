@@ -1,22 +1,23 @@
 #include<stdio.h>
 #include<stdlib.h>
-typedef struct Node{
+
+typedef struct Node {
     int val;
     struct Node* left;
     struct Node* right;
     int height;
-}Node;
+} Node;
 
-int max(int a , int b){
-    return a>b ? a:b;
+int max(int a, int b) {
+    return a > b ? a : b;
 }
 
-int getHeight(Node* root){
-    if(root == NULL) return 0;
+int getHeight(Node* root) {
+    if (root == NULL) return 0;
     return root->height;
 }
 
-Node* create(int data){
+Node* create(int data) {
     Node* newNode = (Node*)malloc(sizeof(Node));
     newNode->val = data;
     newNode->left = newNode->right = NULL;
@@ -24,135 +25,146 @@ Node* create(int data){
     return newNode;
 }
 
-Node* rightRotate(Node* root){
+Node* LLRotate(Node* root) { // Renamed from rightRotate
     Node* leftTree = root->left;
-    Node* rightTree = root->right;
+    Node* rightTree = leftTree->right;
+
     leftTree->right = root;
     root->left = rightTree;
-    root->height = max(getHeight(root->left) , getHeight(root->right))+1;
-    leftTree->height = max(getHeight(leftTree->left) , getHeight(leftTree->right))+1;
+
+    root->height = max(getHeight(root->left), getHeight(root->right)) + 1;
+    leftTree->height = max(getHeight(leftTree->left), getHeight(leftTree->right)) + 1;
+
     return leftTree;
 }
 
-Node* leftRotate(Node* root){
-    Node* leftTree = root->left;
+Node* RRRotate(Node* root) { // Renamed from leftRotate
     Node* rightTree = root->right;
+    Node* leftTree = rightTree->left;
+
     rightTree->left = root;
     root->right = leftTree;
 
-    root->height = max(getHeight(root->left) , getHeight(root->right))+1;
-    rightTree->height = mac(getHeight(rightTree->left) , getHeight(rightTree->right))+1;
+    root->height = max(getHeight(root->left), getHeight(root->right)) + 1;
+    rightTree->height = max(getHeight(rightTree->left), getHeight(rightTree->right)) + 1;
+
     return rightTree;
 }
 
-int BalanceFactor(Node* root){
-    if(root == NULL){
+int BalanceFactor(Node* root) {
+    if (root == NULL) {
         return 0;
     }
-    return root->left->height - root->right->height;
+    return getHeight(root->left) - getHeight(root->right);
 }
 
-Node* insert(Node* root , int data){
-    if(root == NULL){
-        return(create(data));
+Node* insert(Node* root, int data) {
+    if (root == NULL) {
+        return create(data);
     }
-    if(data > root->val){
-        root->right = insert(root->right , data);
+    if (data > root->val) {
+        root->right = insert(root->right, data);
     }
-    if(data < root->val){
-        root->left = insert(root->left , data);
+    if (data < root->val) {
+        root->left = insert(root->left, data);
     }
-    root->height = max(getHeight(root->left)  , getHeight(root->left))+1;
+
+    root->height = max(getHeight(root->left), getHeight(root->right)) + 1;
     int BF = BalanceFactor(root);
-    
-    if(BF > 1 && data < root->left->val){
-        return rightRotate(root);
-    } 
-    if(BF < -1 && data > root->right->val){
-        return leftRotate(root);
+
+    // Perform rotations
+    if (BF > 1 && data < root->left->val) {
+        return LLRotate(root);
     }
-    if(BF > 1 && data > root->left->val){
-        root->left = leftRotate(root->left);
-        return rightRotate(root);
+    if (BF < -1 && data > root->right->val) {
+        return RRRotate(root);
     }
-    if(BF < -1 && data < root->right->val){
-        root->right = rightRotate(root->right);
-        return leftRotate(root);
+    if (BF > 1 && data > root->left->val) {
+        root->left = RRRotate(root->left);
+        return LLRotate(root);
     }
+    if (BF < -1 && data < root->right->val) {
+        root->right = LLRotate(root->right);
+        return RRRotate(root);
+    }
+
     return root;
 }
 
-Node* minValueNode(Node* node){
+Node* minValueNode(Node* node) {
     Node* current = node;
-    while(current->left != NULL){
+    while (current->left != NULL) {
         current = current->left;
     }
     return current;
 }
 
-Node* deleteNode(Node* root, int key){
-    if(root == NULL) return root;
-    if(key < root->val){
-        root->left = deleteNode(root->left , key);
-    }
-    else if(key > root->val){
-        root->right = deleteNode(root->right , key);
-    }
-    else{
-        if((root->left == NULL) || (root->right == NULL)){
-            Node *temp = root->left ? root->left : root->right;
-            // No Child case
-            if(temp == NULL){
-                temp =root ; 
+Node* deleteNode(Node* root, int key) {
+    if (root == NULL) return root;
+
+    if (key < root->val) {
+        root->left = deleteNode(root->left, key);
+    } else if (key > root->val) {
+        root->right = deleteNode(root->right, key);
+    } else {
+        if ((root->left == NULL) || (root->right == NULL)) {
+            Node* temp = root->left ? root->left : root->right;
+
+            if (temp == NULL) { // No child case
+                temp = root;
                 root = NULL;
-            }   
-            // One Child case
-            else{
-                *root = *temp ;  
+            } else { // One child case
+                *root = *temp;
             }
             free(temp);
-        }
-        else{
+        } else {
             Node* temp = minValueNode(root->right);
             root->val = temp->val;
-            root->right = deleteNode(root->right , temp->val);
+            root->right = deleteNode(root->right, temp->val);
         }
+    }
 
-    }
-    if(root == NULL){
-        return root;
-    }
-    root->height = 1+ mac(height(root->left) , height(root->right));
+    if (root == NULL) return root;
+
+    root->height = 1 + max(getHeight(root->left), getHeight(root->right));
     int balance = BalanceFactor(root);
 
-    if(balance > 1 && BalanceFactor(root->left) >= 0){
-        return rightRotate(root);
+    if (balance > 1 && BalanceFactor(root->left) >= 0) {
+        return LLRotate(root);
     }
-    if(balance > 1 && BalanceFactor(root->left) < 0){
-        root->left = leftRotate(root->left);
-        return rightRotate(root);
+    if (balance > 1 && BalanceFactor(root->left) < 0) {
+        root->left = RRRotate(root->left);
+        return LLRotate(root);
     }
-    if(balance < -1 && BalanceFactor(root->right) <= 0){
-        return leftRotate(root);
+    if (balance < -1 && BalanceFactor(root->right) <= 0) {
+        return RRRotate(root);
     }
-    if(balance < -1 && BalanceFactor(root->right) > 0){
-        root->right = rightRotate(root->right);
-        return leftRotate(root);
+    if (balance < -1 && BalanceFactor(root->right) > 0) {
+        root->right = LLRotate(root->right);
+        return RRRotate(root);
     }
+
     return root;
 }
 
-void inOrder(Node* root){
+void inOrder(Node* root) {
+    if (root == NULL) return;
     inOrder(root->left);
-    printf("%d " , root->val );
+    printf("%d ", root->val);
     inOrder(root->right);
 }
 
-int main()
-{
-  struct Node *root = NULL;
+void preOrder(Node* root) { // Missing preOrder function
+    if (root == NULL) return;
+    printf("%d ", root->val);
+    preOrder(root->left);
+    preOrder(root->right);
+}
 
-  /* Constructing tree given in the above figure */
+int main() {
+    struct Node* root = NULL;
+
+    /* Constructing tree */
     root = insert(root, 10);
     root = insert(root, 20);
     root = insert(root, 30);
@@ -160,13 +172,13 @@ int main()
     root = insert(root, 50);
     root = insert(root, 25);
 
-    /* The constructed AVL Tree would be
+    /* The constructed AVL Tree would be:
             30
            /  \
-         20   40
+         20    40
         /  \     \
-       10  25    50
-  */
+       10   25    50
+    */
 
     printf("Preorder traversal : \n");
     preOrder(root);
