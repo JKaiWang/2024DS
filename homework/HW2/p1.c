@@ -54,7 +54,7 @@ void delete(int key){
         }
         temp +=1;
     }
-ㄨㄨ
+}
 
 int main(){
     char string[100];
@@ -69,7 +69,6 @@ int main(){
         if(string[0] == 's' && string[1] == 'l'){
             scanf("%d" , &slot);
             create();
-            //printf("slot\n");
         }
         if(string[0] == 'i'){
             scanf("%d" , &data);
