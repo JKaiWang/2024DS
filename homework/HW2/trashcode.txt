@@ -1,0 +1,178 @@
+void insert(FibonacciHeap *heap, int key) {
+    Node *node = create_node(key);
+    if (heap->min == NULL) {
+        heap->min = node;
+    } else {
+        node->left = heap->min;
+        node->right = heap->min->right;
+        heap->min->right->left = node;
+        heap->min->right = node;
+        if (node->key < heap->min->key) {
+            heap->min = node;
+        }
+    }
+    heap->node_count++;
+}
+
+// Add a node to the root list
+void add_to_root_list(FibonacciHeap *heap, Node *node) {
+    if (heap->min == NULL) {
+        heap->min = node;
+        node->left = node->right = node;
+    } else {
+        node->left = heap->min;
+        node->right = heap->min->right;
+        heap->min->right->left = node;
+        heap->min->right = node;
+    }
+}
+
+// Remove a node from the root list
+void remove_from_root_list(Node *node) {
+    node->left->right = node->right;
+    node->right->left = node->left;
+}
+
+// Consolidate the Fibonacci Heap
+void consolidate(FibonacciHeap *heap) {
+    int max_degree = 40;  // Logarithmic upper bound based on input constraints
+    Node *degree_table[max_degree];
+    for (int i = 0; i < max_degree; i++) {
+        degree_table[i] = NULL;
+    }
+
+    Node *current = heap->min;
+    if (!current) return;
+
+    Node *start = current;
+    do {
+        Node *x = current;
+        current = current->right;
+        int d = x->degree;
+
+        while (degree_table[d] != NULL) {
+            Node *y = degree_table[d];
+            if (x->key > y->key) {
+                Node *temp = x;
+                x = y;
+                y = temp;
+            }
+            remove_from_root_list(y);
+            y->parent = x;
+            if (x->child == NULL) {
+                x->child = y;
+                y->left = y->right = y;
+            } else {
+                y->left = x->child;
+                y->right = x->child->right;
+                x->child->right->left = y;
+                x->child->right = y;
+            }
+            x->degree++;
+            degree_table[d] = NULL;
+            d++;
+        }
+        degree_table[d] = x;
+    } while (current != start);
+
+    heap->min = NULL;
+    for (int i = 0; i < max_degree; i++) {
+        if (degree_table[i]) {
+            if (heap->min == NULL || degree_table[i]->key < heap->min->key) {
+                heap->min = degree_table[i];
+            }
+        }
+    }
+}
+
+// Extract the minimum key from the Fibonacci Heap
+void extract_min(FibonacciHeap *heap) {
+    Node *z = heap->min;
+    if (z != NULL) {
+        if (z->child != NULL) {
+            Node *child = z->child;
+            do {
+                Node *next = child->right;
+                add_to_root_list(heap, child);
+                child->parent = NULL;
+                child = next;
+            } while (child != z->child);
+        }
+        remove_from_root_list(z);
+        if (z == z->right) {
+            heap->min = NULL;
+        } else {
+            heap->min = z->right;
+            consolidate(heap);
+        }
+        free(z);
+        heap->node_count--;
+    }
+}
+
+// Cut a child node and move it to the root list
+void cut(FibonacciHeap *heap, Node *child, Node *parent) {
+    if (parent->child == child) {
+        if (child->right == child) {
+            parent->child = NULL;
+        } else {
+            parent->child = child->right;
+        }
+    }
+    remove_from_root_list(child);
+    parent->degree--;
+    add_to_root_list(heap, child);
+    child->parent = NULL;
+    child->marked = 0;
+}
+
+// Perform cascading cuts
+void cascading_cut(FibonacciHeap *heap, Node *node) {
+    Node *parent = node->parent;
+    if (parent != NULL) {
+        if (node->marked == 0) {
+            node->marked = 1;
+        } else {
+            cut(heap, node, parent);
+            cascading_cut(heap, parent);
+        }
+    }
+}
+
+// Decrease the key of a node
+void decrease_key(FibonacciHeap *heap, Node *node, int new_key) {
+    if (new_key > node->key) {
+        printf("Error: New key is greater than current key.\n");
+        return;
+    }
+    node->key = new_key;
+    Node *parent = node->parent;
+    if (parent != NULL && node->key < parent->key) {
+        cut(heap, node, parent);
+        cascading_cut(heap, parent);
+    }
+    if (node->key < heap->min->key) {
+        heap->min = node;
+    }
+}
+
+// Delete a key from the Fibonacci Heap
+void delete_key(FibonacciHeap *heap, Node *node) {
+    decrease_key(heap, node, INT_MIN);
+    extract_min(heap);
+}
+
+// Search for a node with the specified key
+Node* search(Node *root, int key) {
+    if (root == NULL) return NULL;
+    Node *current = root;
+    do {
+        if (current->key == key) {
+            return current;
+        }
+        Node *result = search(current->child, key);
+        if (result) return result;
+        current = current->right;
+    } while (current != root);
+    return NULL;
+}
