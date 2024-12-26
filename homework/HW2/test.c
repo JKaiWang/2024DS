@@ -1,241 +1,328 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 #include <limits.h>
-
-// 定義 Fibonacci Heap 節點結構
+#include <math.h>
+#define MAX 10
 typedef struct Node {
     int key;
     int degree;
+    int marked;
     struct Node *parent;
-    struct Node *child;
+    struct Node *child[MAX];
     struct Node *left;
     struct Node *right;
-    int childCut; // 用於標記是否需要進一步的級聯切割
 } Node;
 
-// 定義 Fibonacci Heap 結構
 typedef struct Heap {
-    Node *min; // 指向最小鍵值節點
-    int nodeCount; // 節點總數
+    Node *min;
+    int nodeCount;
 } Heap;
 
-// 創建新節點
-Node *createNode(int key) {
-    Node *node = (Node *)malloc(sizeof(Node));
-    node->key = key;
-    node->degree = 0;
-    node->parent = NULL;
-    node->child = NULL;
-    node->left = node;
-    node->right = node;
-    node->childCut = 0;
-    return node;
-}
-
-// 創建 Fibonacci Heap
-Heap *createHeap() {
+Heap* createHeap() {
     Heap *heap = (Heap *)malloc(sizeof(Heap));
     heap->min = NULL;
     heap->nodeCount = 0;
     return heap;
 }
 
-// 將節點插入雙向環形鏈表
-void linkNodes(Node *a, Node *b) {
-    a->right->left = b->left;
-    b->left->right = a->right;
-    a->right = b;
-    b->left = a;
+Node* createNode(int key) {
+    Node* node = (Node *)malloc(sizeof(Node));
+    node->key = key;
+    node->degree = 0;
+    node->marked = 0;
+    node->parent=NULL;
+    for(int i=0 ; i<MAX ; i++){
+        node->child[i] = NULL;
+    }
+    node->left = node->right = node;
+    return node;
 }
 
-// 將節點插入 Fibonacci Heap 的根列表
-void insertNode(Heap *heap, int key) {
-    Node *node = createNode(key);
-    if (!heap->min) {
-        heap->min = node;
+void linkTree(Node* y, Node* x) {
+    y->left->right = y->right;
+    y->right->left = y->left;
+    
+    y->parent = x;
+
+    // 插入 y 到 x 的子節點陣列，並按鍵值排序
+    int i;
+    for (i = x->degree; i > 0 && x->child[i - 1]->key > y->key; i--) {
+        x->child[i] = x->child[i - 1];
+    }
+    x->child[i] = y;
+    x->degree++;
+
+    y->left = y;
+    y->right = y;
+    y->marked = 0;
+}
+
+void linkNodes(Node *a, Node *b) {
+    b->left = a->left;
+    b->right = a;
+    a->left->right = b;
+    a->left = b;
+}
+
+Heap* insert(Heap *heap, int key) {
+    Node *newNode = createNode(key);
+    if (heap->min == NULL) {
+        heap->min = newNode;
     } else {
-        linkNodes(heap->min, node);
-        if (node->key < heap->min->key) {
-            heap->min = node; // 更新最小值
+        linkNodes(heap->min, newNode);
+        if (newNode->key < heap->min->key) {
+            heap->min = newNode;
         }
     }
     heap->nodeCount++;
-    //printf("Inserted %d. Current min: %d\n", key, heap->min->key); // Debug
+    return heap;
 }
 
+void consolidate(Heap* heap) {
+    if (heap->min == NULL) return;
 
-// 合併兩顆相同度數的樹
-void mergeTrees(Node *a, Node *b) {
-    if (a->key > b->key) {
-        Node *temp = a;
-        a = b;
-        b = temp;
-    }
-    // 將 b 成為 a 的子節點
-    b->left->right = b->right;
-    b->right->left = b->left;
-    b->parent = a;
-    if (!a->child) {
-        a->child = b;
-        b->left = b->right = b;
-    } else {
-        linkNodes(a->child, b);
-    }
-    a->degree++;
-    b->childCut = 0;
-}
-
-// Consolidate操作: 合併具有相同度數的樹
-void consolidate(Heap *heap) {
-    int maxDegree = (int)(log2(heap->nodeCount)) + 1;
-    Node **degreeTable = (Node **)calloc(maxDegree, sizeof(Node *));
-    Node *current = heap->min;
-    Node *start = current;
-
+    int maxDegree = (int)(log(heap->nodeCount) / log(2)) + 1;
+    Node** degreeTable = (Node**)calloc(maxDegree, sizeof(Node*));
+    
+    // 收集所有根節點到臨時陣列，確保遍歷時順序為鍵值升序
+    Node* current = heap->min;
+    Node* start = current;
+    int rootCount = 0;
     do {
-        Node *x = current;
+        rootCount++;
         current = current->right;
-        while (degreeTable[x->degree]) {
-            Node *y = degreeTable[x->degree];
-            degreeTable[x->degree] = NULL;
-            mergeTrees(x, y);
-        }
-        degreeTable[x->degree] = x;
+    } while (current != start);
+    
+    Node** roots = (Node**)malloc(rootCount * sizeof(Node*));
+    int idx = 0;
+    current = heap->min;
+    do {
+        roots[idx++] = current;
+        current = current->right;
     } while (current != start);
 
-    heap->min = NULL;
-    for (int i = 0; i < maxDegree; i++) {
-        if (degreeTable[i]) {
-            if (!heap->min || degreeTable[i]->key < heap->min->key) {
-                heap->min = degreeTable[i];
+    // 排序根節點根據鍵值升序（bubble sort 或其他排序方法）
+    for (int i = 0; i < rootCount - 1; i++) {
+        for (int j = 0; j < rootCount - i - 1; j++) {
+            if (roots[j]->key > roots[j + 1]->key) {
+                Node* temp = roots[j];
+                roots[j] = roots[j + 1];
+                roots[j + 1] = temp;
             }
         }
     }
+
+    // 處理每個根節點
+    for (int i = 0; i < rootCount; i++) {
+        Node* x = roots[i];
+        int d = x->degree;
+
+        while (degreeTable[d] != NULL) {
+            Node* y = degreeTable[d];
+            if (x->key > y->key) {
+                Node* temp = x;
+                x = y;
+                y = temp;
+            }
+            
+            linkTree(y, x);  // 將 y 合併到 x
+            degreeTable[d] = NULL;
+            d++;
+        }
+        degreeTable[d] = x;
+    }
+    
+    // 重建根列表
+    heap->min = NULL;
+    for (int i = 0; i < maxDegree; i++) {
+        if (degreeTable[i] != NULL) {
+            if (heap->min == NULL) {
+                heap->min = degreeTable[i];
+                degreeTable[i]->left = degreeTable[i];
+                degreeTable[i]->right = degreeTable[i];
+            } else {
+                linkNodes(heap->min, degreeTable[i]);
+                if (degreeTable[i]->key < heap->min->key) {
+                    heap->min = degreeTable[i];
+                }
+            }
+        }
+    }
+    
+    free(roots);
     free(degreeTable);
 }
 
-// 提取最小值
-int extractMin(Heap *heap) {
-    if (!heap->min) return INT_MAX;
-    Node *minNode = heap->min;
-    if (minNode->child) {
-        Node *child = minNode->child;
-        do {
-            child->parent = NULL;
-            child = child->right;
-        } while (child != minNode->child);
-        linkNodes(minNode, minNode->child);
-    }
-    minNode->left->right = minNode->right;
-    minNode->right->left = minNode->left;
 
-    if (minNode->right == minNode) {
+
+
+Heap* extractMin(Heap *heap) {
+    if (heap->min == NULL) return heap;
+
+    Node *z = heap->min;
+
+    // 處理 z 的子節點
+    for (int i = 0; i < z->degree; i++) {
+        Node *child = z->child[i];
+        if (child != NULL) {
+            child->parent = NULL;
+            linkNodes(heap->min, child);  // 將子節點加入根列表
+        }
+    }
+
+    // 從根列表移除 z
+    z->left->right = z->right;
+    z->right->left = z->left;
+
+    if (z == z->right) {
         heap->min = NULL;
     } else {
-        heap->min = minNode->right;
+        heap->min = z->right;
         consolidate(heap);
     }
+
     heap->nodeCount--;
-    int minKey = minNode->key;
-    free(minNode);
-    //printf("Extracted min: %d. Current min: %d\n", minKey, heap->min ? heap->min->key : -1); // Debug
-    return minKey;
+    free(z);
+    return heap;
 }
 
-Node *search(Node *root, int key) {
-    if (!root) return NULL;
-
+Node* search(Node *root, int key) {
+    if (root == NULL) return NULL;
+    
     Node *current = root;
-    Node *found = NULL;
-
     do {
         if (current->key == key) {
-            return current; // 找到目標節點
+            return current;
         }
-
-        // 在子節點中遞迴查找
-        if (current->child) {
-            found = search(current->child, key);
-            if (found) return found;
+        for (int i = 0; i < current->degree; i++) {
+            Node *result = search(current->child[i], key);
+            if (result != NULL) {
+                //printf("search : %d\n" , key);
+                return result;
+            }
         }
-
         current = current->right;
     } while (current != root);
 
-    return NULL; // 找不到
+    return NULL;
 }
 
+Heap* decreaseKey(Heap *heap, Node *node, int newKey) {
 
-
-// 減少鍵值
-void decreaseKey(Heap *heap, Node *node, int newKey) {
-    if (newKey > node->key) {
-        printf("New key is greater than current key\n");
-        return;
-    }
-
-    node->key = newKey;
+    node->key = node->key - newKey;
     Node *parent = node->parent;
 
-    if (parent && node->key < parent->key) {
-        // 切割節點並加入根列表
-        if (parent->child == node) {
-            parent->child = (node->right == node) ? NULL : node->right;
-        }
-        parent->degree--;
-        linkNodes(heap->min, node);
-        node->parent = NULL;
-        node->childCut = 0;
+    // Check for violation of heap property
+    if (parent != NULL && node->key < parent->key) {
+        Node *current = node;
 
-        // 級聯切割
-        while (parent && parent->childCut) {
-            Node *grandParent = parent->parent;
-            if (grandParent && grandParent->child == parent) {
-                grandParent->child = (parent->right == parent) ? NULL : parent->right;
+        // Cascading cuts
+        while (parent != NULL) {
+            // Remove current from parent's child array
+            for (int i = 0; i < parent->degree; i++) {
+                if (parent->child[i] == current) {
+                    // Shift children to remove current
+                    for (int j = i; j < parent->degree - 1; j++) {
+                        parent->child[j] = parent->child[j + 1];
+                    }
+                    parent->child[parent->degree - 1] = NULL;
+                    parent->degree--;
+                    break;
+                }
             }
-            linkNodes(heap->min, parent);
-            parent->parent = NULL;
-            parent->childCut = 0;
-            parent = grandParent;
-        }
 
-        if (parent) {
-            parent->childCut = 1;
+            // Add current to the root list
+            linkNodes(heap->min, current);
+            current->parent = NULL;
+            current->marked = 0;
+
+            // Move up the tree
+            if (parent->marked == 0) {
+                parent->marked = 1;
+                break;
+            }
+            current = parent;
+            parent = parent->parent;
         }
     }
 
+    // Update the heap's min pointer if necessary
     if (node->key < heap->min->key) {
-        heap->min = node; // 更新最小值
+        heap->min = node;
     }
+
+    return heap;
 }
 
 
-// 刪除鍵值
-void deleteKey(Heap *heap, Node *node) {
-    decreaseKey(heap, node, INT_MIN);
+Heap* deleteKey(Heap *heap, Node *node) {
+    if (node == NULL) return heap;
+
+    decreaseKey(heap, node, node->key);
     extractMin(heap);
+    return heap;
 }
 
-// 打印 Fibonacci Heap 的層次結構
-void printHeap(Node *root) {
-    if (!root) return;
-    Node *start = root;
-    do {
-        printf("%d ", root->key);
-        if (root->child) {
-            printf("[ ");
-            printHeap(root->child);
-            printf("] ");
+void levelOrderTraversal(Node *root) {
+    if (root == NULL) return;
+    
+    // 使用 queue 來實現層序遍歷
+    Node *queue[100];
+    int front = 0, rear = 0;
+    
+    // 將根節點加入 queue
+    queue[rear++] = root;
+    
+    // 打印第一個節點（不帶空格）
+    printf("%d", root->key);
+    
+    // 處理剩下的節點
+    while (front < rear) {
+        Node *current = queue[front++];
+        
+        // 按照 child array 的順序將子節點加入 queue
+        for (int i = 0; i < current->degree; i++) {
+            if (current->child[i] != NULL) {
+                printf(" %d", current->child[i]->key);
+                queue[rear++] = current->child[i];
+            }
         }
-        root = root->right;
-    } while (root != start);
+    }
     printf("\n");
 }
 
+void printHeap(Heap *heap) {
+    if (heap->min == NULL) return;
+    
+    // 1. 收集所有根節點
+    Node *roots[100];  // 假設最多100個根節點
+    int rootCount = 0;
+    
+    Node *current = heap->min;
+    do {
+        roots[rootCount++] = current;
+        current = current->right;
+    } while (current != heap->min);
+    
+    // 2. 根據 degree 排序（bubble sort）
+    for (int i = 0; i < rootCount - 1; i++) {
+        for (int j = 0; j < rootCount - i - 1; j++) {
+            if (roots[j]->degree > roots[j + 1]->degree) {
+                Node *temp = roots[j];
+                roots[j] = roots[j + 1];
+                roots[j + 1] = temp;
+            }
+        }
+    }
+    
+    // 3. 按照 degree 從小到大順序對每棵樹進行層序遍歷
+    for (int i = 0; i < rootCount; i++) {
+        levelOrderTraversal(roots[i]);
+    }
+}
 
-// 主程式邏輯
+
 int main() {
     Heap *heap = createHeap();
     char command[20];
@@ -245,25 +332,30 @@ int main() {
         scanf("%s", command);
         if (strcmp(command, "insert") == 0) {
             scanf("%d", &key);
-            insertNode(heap, key);
-        } else if (strcmp(command, "decrease") == 0) {
+            heap = insert(heap, key);
+            //printHeap(heap);
+        } 
+        else if (strcmp(command, "decrease") == 0) {
             scanf("%d %d", &key, &value);
-            Node *node = search(heap->min, key); // 此處需補充 search 實作
-            if (node) {
-                decreaseKey(heap, node, key - value);
-            }
-        } else if (strcmp(command, "extract-min") == 0) {
-            printf("Extracted min: %d\n", extractMin(heap));
-        } else if (strcmp(command, "delete") == 0) {
+            Node *node = search(heap->min, key);
+            heap = decreaseKey(heap, node, value);
+            //printHeap(heap);
+        } 
+        else if (strcmp(command, "delete") == 0) {
             scanf("%d", &key);
-            Node *node = search(heap->min, key); // 此處需補充 search 實作
-            if (node) {
-                deleteKey(heap, node);
-            }
-        } else if (strcmp(command, "exit") == 0) {
-            printHeap(heap->min);
+            Node *node = search(heap->min, key);
+            heap = deleteKey(heap, node);
+            //printHeap(heap);
+        } 
+        else if (strcmp(command, "extract-min") == 0) {
+            heap = extractMin(heap);
+            //printHeap(heap);
+        } 
+        else if (strcmp(command, "exit") == 0) {
             break;
         }
     }
+
+    printHeap(heap);
     return 0;
 }

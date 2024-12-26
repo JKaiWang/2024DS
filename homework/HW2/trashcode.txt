@@ -176,3 +176,55 @@ Node* search(Node *root, int key) {
     } while (current != root);
     return NULL;
 }
+
+
+
+
+
+
+Heap* decreaseKey(Heap *heap, Node *node, int value) {
+    if (node == NULL || value >= node->key) return heap;
+
+    node->key -= value;
+    Node *parent = node->parent;
+
+    if (parent != NULL && node->key < parent->key) {
+        // Cut and cascading cuts
+        Node *current = node;
+        while (parent != NULL) {
+            // 從父節點的 child 陣列中移除 current
+            for (int i = 0; i < parent->degree; i++) {
+                if (parent->child[i] == current) {
+                    for (int j = i; j < parent->degree - 1; j++) {
+                        parent->child[j] = parent->child[j + 1];
+                    }
+                    parent->child[parent->degree - 1] = NULL;
+                    parent->degree--;
+                    break;
+                }
+            }
+            
+
+            // 將 current 節點插入到根列表中
+            linkNodes(heap->min, current);
+            current->parent = NULL;
+            current->marked = 0;
+
+            // 如果父節點已經被標記，則繼續進行級聯切割
+            if (parent->marked == 0) {
+                parent->marked = 1;
+                break;
+            }
+
+            // 如果父節點已經被標記，繼續向上切割
+            current = parent;
+            parent = parent->parent;
+        }
+    }
+
+    if (node->key < heap->min->key) {
+        heap->min = node;
+    }
+
+    return heap;
+}
