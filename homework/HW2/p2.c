@@ -45,7 +45,6 @@ void linkTree(Node* y, Node* x) {
     
     y->parent = x;
 
-    // 插入 y 到 x 的子節點陣列，並按鍵值排序
     int i;
     for (i = x->degree; i > 0 && x->child[i - 1]->key > y->key; i--) {
         x->child[i] = x->child[i - 1];
@@ -85,7 +84,6 @@ void consolidate(Heap* heap) {
     int maxDegree = (int)(log(heap->nodeCount) / log(2)) + 1;
     Node** degreeTable = (Node**)calloc(maxDegree, sizeof(Node*));
     
-    // 收集所有根節點到臨時陣列，確保遍歷時順序為鍵值升序
     Node* current = heap->min;
     Node* start = current;
     int rootCount = 0;
@@ -102,7 +100,7 @@ void consolidate(Heap* heap) {
         current = current->right;
     } while (current != start);
 
-    // 排序根節點根據鍵值升序（bubble sort 或其他排序方法）
+    // bubble sort
     for (int i = 0; i < rootCount - 1; i++) {
         for (int j = 0; j < rootCount - i - 1; j++) {
             if (roots[j]->key > roots[j + 1]->key) {
@@ -113,7 +111,7 @@ void consolidate(Heap* heap) {
         }
     }
 
-    // 處理每個根節點
+    // 重新整理root
     for (int i = 0; i < rootCount; i++) {
         Node* x = roots[i];
         int d = x->degree;
@@ -126,14 +124,13 @@ void consolidate(Heap* heap) {
                 y = temp;
             }
             
-            linkTree(y, x);  // 將 y 合併到 x
+            linkTree(y, x);  
             degreeTable[d] = NULL;
             d++;
         }
         degreeTable[d] = x;
     }
     
-    // 重建根列表
     heap->min = NULL;
     for (int i = 0; i < maxDegree; i++) {
         if (degreeTable[i] != NULL) {
@@ -162,12 +159,12 @@ Heap* extractMin(Heap *heap) {
 
     Node *z = heap->min;
 
-    // 處理 z 的子節點
+   
     for (int i = 0; i < z->degree; i++) {
         Node *child = z->child[i];
         if (child != NULL) {
             child->parent = NULL;
-            linkNodes(heap->min, child);  // 將子節點加入根列表
+            linkNodes(heap->min, child);  
         }
     }
 
@@ -237,7 +234,6 @@ Heap* decreaseKey(Heap *heap, Node *node, int newKey) {
             current->parent = NULL;
             current->marked = 0;
 
-            // Move up the tree
             if (parent->marked == 0) {
                 parent->marked = 1;
                 break;
@@ -246,19 +242,16 @@ Heap* decreaseKey(Heap *heap, Node *node, int newKey) {
             parent = parent->parent;
         }
     }
-
     // Update the heap's min pointer if necessary
     if (node->key < heap->min->key) {
         heap->min = node;
     }
-
     return heap;
 }
 
 
 Heap* deleteKey(Heap *heap, Node *node) {
     if (node == NULL) return heap;
-
     decreaseKey(heap, node, node->key);
     extractMin(heap);
     return heap;
@@ -295,8 +288,7 @@ void levelOrderTraversal(Node *root) {
 void printHeap(Heap *heap) {
     if (heap->min == NULL) return;
     
-    // 1. 收集所有根節點
-    Node *roots[100];  // 假設最多100個根節點
+    Node *roots[100];  
     int rootCount = 0;
     
     Node *current = heap->min;
@@ -305,7 +297,6 @@ void printHeap(Heap *heap) {
         current = current->right;
     } while (current != heap->min);
     
-    // 2. 根據 degree 排序（bubble sort）
     for (int i = 0; i < rootCount - 1; i++) {
         for (int j = 0; j < rootCount - i - 1; j++) {
             if (roots[j]->degree > roots[j + 1]->degree) {
@@ -316,7 +307,6 @@ void printHeap(Heap *heap) {
         }
     }
     
-    // 3. 按照 degree 從小到大順序對每棵樹進行層序遍歷
     for (int i = 0; i < rootCount; i++) {
         levelOrderTraversal(roots[i]);
     }
