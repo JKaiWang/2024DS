@@ -1,367 +1,179 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdlib.h>
+#define MAX_CHILD 100
 
-typedef struct Node{
+typedef struct Node {
     int key;
     int degree;
-    int check;
-    struct Node* child;
-    struct Node* sibling; 
-}Node;
+    int flag;
+    struct Node *parent;
+    struct Node *child; // Points to one of the children (doubly circular linked list)
+    struct Node *left;
+    struct Node *right;
+} Node;
 
-Node* create(int key){
-    Node* node = (Node*)malloc(sizeof(Node));
-    node->key = key;
-    node->degree = 0;
-    node->check = 0;
-    node->child = NULL;
-    node->sibling = NULL;
-    return node;
+Node *createNode(int key) {
+    Node *newNode = (Node *)malloc(sizeof(Node));
+    newNode->key = key;
+    newNode->degree = 0;
+    newNode->flag = 0;
+    newNode->parent = NULL;
+    newNode->child = NULL;
+    newNode->left = newNode;
+    newNode->right = newNode;
+    return newNode;
 }
 
-void print(Node**root){
-    for(int i = 0;i<100;i++){//degree
-        for(int k = 0;k<100;k++){
-            if(root[k]){
-                if(root[k]->degree==i){
-                    Node* out[100] = {NULL};
-                    out[0] = root[k];
-                    root[k]->check = 1;
-                    int j = 0;
-                    int num = 1;
-                    
-                    while(out[j]!=NULL){
-                        if(out[j]->child){ 
-                            out[num++] = out[j]->child;
-                            out[j]->child->check = 1;
-                            Node*current = out[j]->child;
-                            while(current ){
-                                if(current->sibling){
-                                    out[num++] = current->sibling;
-                                    current->sibling->check = 1;
-                                }
-                                current = current->sibling;
-                            }
-                        }
-                        j++; 
-                    }
-                    for(int j = 0;j<num;j++){
-                        if(out[j]){
-                            printf("%d ",out[j]->key);
-                        }
-                    }
-                    printf("\n");
-                }
-            }
-            
-        }
-        
-    }
-    for (int k = 0; k < 100; k++) {
-        if (root[k]) {
-            Node* current = root[k];
-            while (current) {
-                current->check = 0;
-                if (current->child) {
-                    Node* child = current->child;
-                    while (child) {
-                        child->check = 0;
-                        child = child->sibling;
-                    }
-                }
-                current = current->sibling;
-            }
+void insertNode(Node **minNode, Node **newNode) {
+    if (*minNode == NULL) {
+        *minNode = *newNode;
+    } else {
+        (*newNode)->right = (*minNode)->right;
+        (*newNode)->left = *minNode;
+        (*minNode)->right->left = *newNode;
+        (*minNode)->right = *newNode;
+        if ((*newNode)->key < (*minNode)->key) {
+            *minNode = *newNode;
         }
     }
 }
 
-void insert(Node**root,int key,Node** min){
-    Node* node = create(key);
-    for(int i = 0;i<100;i++){
-        if(root[i]==NULL){
-            root[i] = node;
-            root[i]->sibling = NULL;
-            if(node->key < (*min)->key){
-                *min = node;
-            }
-            break;
+Node *searchNode(Node *minNode, int key) {
+    if (minNode == NULL) return NULL;
+    Node *current = minNode;
+    do {
+        if (current->key == key) return current;
+        if (current->child != NULL) {
+            Node *found = searchNode(current->child, key);
+            if (found != NULL) return found;
         }
-    }
-    return;
+        current = current->right;
+    } while (current != minNode);
+    return NULL;
 }
 
-void newRoot(Node**root,Node*node,Node**min){
-    for(int i = 0;i<100;i++){
-        if(root[i]==NULL){
-            root[i] = node;
-            root[i]->sibling = NULL;
-            if(node->key < (*min)->key){
-                *min = node;
-            }
-            break;
-        }
+void merge(Node **small, Node **big) {
+    (*big)->parent = *small;
+    if ((*small)->child == NULL) {
+        (*small)->child = *big;
+        (*big)->left = *big;
+        (*big)->right = *big;
+    } else {
+        Node *child = (*small)->child;
+        (*big)->right = child->right;
+        (*big)->left = child;
+        child->right->left = *big;
+        child->right = *big;
     }
+    (*small)->degree++;
 }
 
-void decrease(Node**root,int key,int value,Node** min){
-    for(int i = 0;i<100;i++){
-        if(root[i]){
-            Node* out[100] = {NULL};
-            out[0] = root[i];
-                
-            int j = 0;
-            int num = 1;
-            while(out[j]!=NULL){
-                if(out[j]->key==key){
-                    out[j]->key = key-value;
-                    root[i] = out[j];
-                    if(root[i]->key < (*min)->key) *min = root[i];
-                    break;
-                }
-                if(out[j]->child){ 
-                    out[num++] = out[j]->child;
-                    if(out[j]->child->key == key){
-                        out[j]->child->key = key-value;
-                        if(out[j]->child->key < out[j]->key){
-                            newRoot(root,out[j]->child,min);
-                            if(out[j]->child->sibling)out[j]->child = out[j]->child->sibling;
-                            else out[j]->child = NULL;
-                            out[j]->degree--;
-                            break;
-                            }
-                    }
-                    Node*current = out[j]->child;
-                    while(current ){
-                        if(current->sibling){
-                            out[num++] = current->sibling;
-                            if(current->sibling->key == key){
-                                current->sibling->key = key-value;
-                                if(current->sibling->key < out[j]->key){   
-                                    newRoot(root,current->sibling,min);
-                                    if(current->sibling->sibling)current->sibling = current->sibling->sibling;
-                                    else current->sibling = NULL;
-                                    out[j]->degree--;
-                                    break;
-                                }
-                            }
-                        }
-                        current = current->sibling;
-                    }
-                }
-                j++; 
+void consolidate(Node **minNode) {
+    if (*minNode == NULL) return;
+    Node *degreeTable[MAX_CHILD] = {NULL};
+    Node *current = *minNode;
+    Node *start = current;
+    do {
+        Node *x = current;
+        current = current->right;
+        int d = x->degree;
+        while (degreeTable[d] != NULL) {
+            Node *y = degreeTable[d];
+            if (x->key > y->key) {
+                Node *temp = x;
+                x = y;
+                y = temp;
             }
+            merge(&x, &y);
+            degreeTable[d] = NULL;
+            d++;
         }
-    }
-    for(int i = 0;i<100;i++){
-        if(root[i]){
-            root[i]->sibling = NULL;
+        degreeTable[d] = x;
+    } while (current != start);
+
+    *minNode = NULL;
+    for (int i = 0; i < MAX_CHILD; i++) {
+        if (degreeTable[i] != NULL) {
+            insertNode(minNode, &degreeTable[i]);
         }
     }
 }
 
-void adjust(Node**root,Node* node,Node**min){
-    if(node->child){
-        Node *current = node->child;
-        while(current ){
-            
-                for(int j = 0;j<100;j++){
-                    if(root[j]==NULL){
-                        root[j] = current;
-                        
-                        if(*min==NULL || root[j]->key <(*min)->key) *min = root[j];
-                        break;
-                    }
-                }
-            
-            if(current->sibling)current = current->sibling;
-            else current = NULL;
-        }
-        
-        for(int i = 0;i<100;i++){
-            if(root[i]&&root[i]->sibling){
-                root[i]->sibling = NULL;
-            }
-        }
+void deleteNode(Node **deleteTarget, Node **minNode) {
+    if (*deleteTarget == NULL) return;
+    if (*deleteTarget == *minNode) {
+        *minNode = (*deleteTarget)->right;
     }
-    return;
-}
-
-// 
-void delete(Node** root, int key, Node** min) {
-    for (int i = 0; i < 100; i++) {
-        if (root[i]) {
-            if (root[i]->key == key) {  
-                adjust(root, root[i], min); 
-                free(root[i]);  
-                root[i] = NULL;  
-                return;
-            } 
-            else if (root[i]->child) {
-                Node* current = root[i]->child;
-                Node* prev = NULL;
-                while (current) {
-                    if (current->key == key) { 
-                        if (prev) {
-                            prev->sibling = current->sibling;  
-                        } else {
-                            root[i]->child = current->sibling;  
-                        }
-                        adjust(root, current, min); 
-                        free(current);  
-                        root[i]->degree--;  
-                        return;
-                    }
-                    prev = current;
-                    current = current->sibling;
-                }
-            }
-        }
+    Node *child = (*deleteTarget)->child;
+    while (child != NULL) {
+        Node *next = child->right;
+        child->parent = NULL;
+        insertNode(minNode, &child);
+        if (next == child) break;
+        child = next;
+    }
+    (*deleteTarget)->left->right = (*deleteTarget)->right;
+    (*deleteTarget)->right->left = (*deleteTarget)->left;
+    free(*deleteTarget);
+    *deleteTarget = NULL;
+    if (*minNode != NULL) {
+        consolidate(minNode);
     }
 }
 
-
-void meld(Node**root,int degreeNum){
-    int degree[100];
-    for(int i = 0;i<100;i++){
-        degree[i] = -1;
-    }
-    int num = 0;
-    for(int i=0;i<100;i++){
-        if(root[i]){
-            if(root[i]->degree==degreeNum){
-                degree[num++] = i;
-                for(int k = 0;k<num;k++){
-                    if(root[degree[k]]->key > root[degree[num-1]]->key){
-                        int tmp = degree[k];
-                        degree[k] = degree[num-1];
-                        degree[num-1] = tmp;
-                    }
-                }
-            }
+void printHeap(Node *minNode) {
+    if (minNode == NULL) return;
+    Node *current = minNode;
+    do {
+        printf("%d ", current->key);
+        Node *child = current->child;
+        if (child != NULL) {
+            printf("(Child: ");
+            Node *childStart = child;
+            do {
+                printf("%d ", child->key);
+                child = child->right;
+            } while (child != childStart);
+            printf(") ");
         }
-    }
-    for(int i = 0;i<100;i++){
-        if(degree[i]!=-1 &&root[degree[i]]){
-            int j = i+1;
-            for(j = i+1;j<100;j++){
-                if(degree[j]!=-1 && root[degree[j]]) break;
-            }
-            if((!root[degree[i]]->child) && j<100&&degree[j]!=-1){
-                root[degree[i]]->child = root[degree[j]];
-                root[degree[i]]->degree++;
-                root[degree[j]] = NULL;
-                degree[j] = -1;
-                
-            }
-            else if(root[degree[i]]->child && j<100&&degree[j]!=-1){
-                Node* current = root[degree[i]]->child;
-                if(current->key > root[degree[j]]->key){
-                    root[degree[j]]->sibling = root[degree[i]]->child;
-                    root[degree[i]]->child = root[degree[j]];
-                    root[degree[i]]->degree++;
-                    root[degree[j]] = NULL;
-                    
-                }
-                else {
-                    int checkk = 0;
-                    while(current){
-                        if(current->sibling && current->sibling->key > root[degree[j]]->key){
-                            root[degree[j]]->sibling = current->sibling;
-                            current->sibling = root[degree[j]];
-                            checkk = 1;
-                            break;
-                        }
-                        current = current->sibling;
-                    }
-                    if(!checkk){
-                        current = root[degree[i]]->child;
-                        while(current){
-                            if(current->sibling == NULL){
-                                current->sibling = root[degree[j]];
-                                //print(root);
-                                break;
-                            }
-                            current = current->sibling;
-                        }
-                        
-                        root[degree[i]]->degree++;
-                        root[degree[j]] = NULL;
-                        
-                    } 
-                }
-                degree[j] = -1;
-                
-                break;
-            }
-            
-        }
-        degree[i] = -1;
-        
-    }
-
+        current = current->right;
+    } while (current != minNode);
+    printf("\n");
 }
 
-void extract_min(Node**root,Node**min){
-    for(int i = 0;i<100;i++){
-        if(root[i]==*min) root[i] = NULL;
-    }
-
-    Node* tmp = *min;
-    *min = NULL;
-    if(tmp->child) adjust(root,tmp,min);
-    free(tmp);
-    for (int i = 0; i < 100; i++) {
-        if (root[i]) {
-            if (*min == NULL || root[i]->key < (*min)->key) {
-                *min = root[i];
+int main() {
+    char input[20];
+    int inputNum;
+    Node *minNode = NULL;
+    while (1) {
+        scanf("%s", input);
+        if (strcmp(input, "exit") == 0) {
+            printHeap(minNode);
+            return 0;
+        } else if (strcmp(input, "insert") == 0) {
+            scanf("%d", &inputNum);
+            Node *newNode = createNode(inputNum);
+            insertNode(&minNode, &newNode);
+        } else if (strcmp(input, "delete") == 0) {
+            scanf("%d", &inputNum);
+            Node *deleteTarget = searchNode(minNode, inputNum);
+            deleteNode(&deleteTarget, &minNode);
+        } else if (strcmp(input, "decrease") == 0) {
+            int decreaseAmount;
+            scanf("%d %d", &inputNum, &decreaseAmount);
+            Node *targetNode = searchNode(minNode, inputNum);
+            if (targetNode != NULL) {
+                targetNode->key -= decreaseAmount;
+                if (targetNode->key < minNode->key) {
+                    minNode = targetNode;
+                }
+            }
+        } else if (strcmp(input, "extract-min") == 0) {
+            if (minNode != NULL) {
+                Node *extractNode = minNode;
+                deleteNode(&extractNode, &minNode);
             }
         }
     }
-}
-
-
-
-int main(){
-    Node* min = create(10001);
-    Node* root[100];
-    for(int i = 0;i<100;i++){
-        root[i] = NULL;
-    }
-    while(1){
-        char input[15];
-        scanf("%s",input);
-        if(strcmp(input,"exit")==0) break;
-        else{
-            int key;
-            
-            if(strcmp(input,"insert")==0){
-                scanf("%d",&key);
-                insert(root,key,&min);
-            }
-            else if(strcmp(input,"delete")==0){
-                scanf("%d",&key);
-                delete(root,key,&min);
-                for(int i = 0; i<100;i++){
-                    meld(root,i);
-                }
-            }
-            else if(strcmp(input,"decrease")==0){
-                scanf("%d",&key);
-                int value;
-                scanf("%d",&value);
-                decrease(root,key,value,&min);
-
-            }
-            else{
-                extract_min(root,&min);
-                for(int i = 0; i<100;i++){
-                    meld(root,i);
-                    
-                }
-            }
-        }
-        //print(root);
-    }
-    print(root);
 }
