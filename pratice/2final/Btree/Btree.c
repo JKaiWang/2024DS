@@ -115,7 +115,6 @@ void insert(struct BTreeNode **root, int key) {
     }
 }
 
-// Function to traverse and print the B-tree in-order
 void traverse(struct BTreeNode *root) {
     if (root != NULL) {
         int i;

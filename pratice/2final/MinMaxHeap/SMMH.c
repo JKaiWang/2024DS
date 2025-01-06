@@ -15,9 +15,6 @@ void swap(int *a, int *b) {
     *a = *b;
     *b = temp;
 }
-
-
-
 void insert(SMMH* heap, int value) {
     if (heap->size == MAX_SIZE) {
         return;

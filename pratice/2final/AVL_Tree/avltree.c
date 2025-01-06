@@ -102,6 +102,13 @@ Node* minValueNode(Node* node) {
     }
     return current;
 }
+Node* maxValueNode(Node* node){
+    Node* current = node;
+    while(current->right != NULL){
+        current = current->right;
+    }
+    return current;
+}
 
 Node* deleteNode(Node* root, int key) {
     if (root == NULL) return root;
@@ -122,9 +129,9 @@ Node* deleteNode(Node* root, int key) {
             }
             free(temp);
         } else {
-            Node* temp = minValueNode(root->right);
+            Node* temp = maxValueNode(root->left);
             root->val = temp->val;
-            root->right = deleteNode(root->right, temp->val);
+            root->left = deleteNode(root->left, temp->val);
         }
     }
 
@@ -165,6 +172,27 @@ void preOrder(Node* root) { // Missing preOrder function
     preOrder(root->right);
 }
 
+void levelOrder(Node* root) {
+    if (root == NULL) return;
+
+    Node* queue[100];
+    int front = 0, rear = 0;
+
+    queue[rear++] = root;
+
+    while (front < rear) {
+        Node* current = queue[front++];
+        printf("%d ", current->val);
+
+        if (current->left != NULL) {
+            queue[rear++] = current->left;
+        }
+        if (current->right != NULL) {
+            queue[rear++] = current->right;
+        }
+    }
+}
+
 int main() {
     struct Node* root = NULL;
 
@@ -174,7 +202,8 @@ int main() {
     root = insert(root, 30);
     root = insert(root, 40);
     root = insert(root, 50);
-    root = insert(root, 25);
+    root = insert(root, 60);
+    root = deleteNode(root , 20);
 
     /* The constructed AVL Tree would be:
             30
@@ -186,6 +215,9 @@ int main() {
 
     printf("Preorder traversal : \n");
     preOrder(root);
+    printf("\n");
+    levelOrder(root);
+
 
     return 0;
 }
