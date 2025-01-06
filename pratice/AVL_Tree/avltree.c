@@ -25,6 +25,10 @@ Node* create(int data) {
     return newNode;
 }
 
+int updateHeight(Node* root){
+    return  max(getHeight(root->left) , getHeight(root->right))+1;
+}
+
 Node* LLRotate(Node* root) { // Renamed from rightRotate
     Node* leftTree = root->left;
     Node* rightTree = leftTree->right;
@@ -32,8 +36,8 @@ Node* LLRotate(Node* root) { // Renamed from rightRotate
     leftTree->right = root;
     root->left = rightTree;
 
-    root->height = max(getHeight(root->left), getHeight(root->right)) + 1;
-    leftTree->height = max(getHeight(leftTree->left), getHeight(leftTree->right)) + 1;
+    root->height = updateHeight(root);
+    leftTree->height = updateHeight(leftTree);
 
     return leftTree;
 }
@@ -45,8 +49,8 @@ Node* RRRotate(Node* root) { // Renamed from leftRotate
     rightTree->left = root;
     root->right = leftTree;
 
-    root->height = max(getHeight(root->left), getHeight(root->right)) + 1;
-    rightTree->height = max(getHeight(rightTree->left), getHeight(rightTree->right)) + 1;
+    root->height =updateHeight(root);
+    rightTree->height = updateHeight(rightTree);
 
     return rightTree;
 }
