@@ -1,100 +1,142 @@
-//search(key)
-//insert(key , elemeny)
-//delete(key)
-//time complexity: O(1)
 #include<stdio.h>
 #include<stdlib.h>
-#include<string.h>
+#include<stdbool.h>
 
-#define MAX 10
+int** hashtable;
+int bucket;
+int slot;
 
-typedef struct Node{
-    int key;
-    char value[100];
-    struct Node* next;
-}Node;
-
-Node* hashTable[MAX];
-
-int hashFunction(int key){
-    return key%MAX;
-}
-
-void insert(int key , const char* value){
-    int index = hashFunction(key);
-    Node* newNode = (Node*)malloc(sizeof(Node));
-    newNode->key = key;
-    strcpy(newNode->value , value);
-    newNode->next = hashTable[index];
-    hashTable[index] = newNode;
-}
-
-char* search(int key){
-    int index = hashFunction(key);
-    Node* temp = hashTable[index];
-    while(temp){
-        if(temp->key == key){
-            return temp->value;
+void create(){
+    hashtable = (int**)malloc(bucket*sizeof(int*));
+    for(int i=0 ; i< bucket ; i++){
+        hashtable[i] = (int*)malloc(slot*sizeof(int));
+        for(int j=0 ; j< slot ; j++){
+            hashtable[i][j] = -1;
         }
-        temp = temp->next;
+    }   
+}
+int* bloomFilter;
+
+int hash1(int key){
+    return key % bucket;
+}
+
+int hash2(int key){
+    return (key / bucket) % bucket;
+}
+
+void bloomInsert(int key ){
+    bloomFilter[hash1(key)] = 1;
+    bloomFilter[hash2(key)] = 1;
+}
+
+int bloomSearch(int key){
+    return bloomFilter[hash1(key)] ==1 && bloomFilter[hash2(key)] ==1 ;
+}
+
+
+
+void insert(int key){
+    int temp = key % bucket;
+    for(int i=0 ; i<bucket ; i++){
+        int current = (temp+i)%bucket;
+        for(int j=0 ; j<slot ; j++){
+            if(hashtable[current][j] == -1){
+                hashtable[current][j] = key;
+                bloomInsert(key);
+                return;
+            }
+        }
     }
-    return NULL;
+}
+
+void rearrange_after_delete(int start_bucket, int start_slot) {
+    int current_bucket = start_bucket;
+    int current_slot = start_slot;
+
+    while (true) {
+        current_slot++;
+        if (current_slot >= slot) {
+            current_slot = 0;
+            current_bucket = (current_bucket + 1) % bucket;
+        }
+        if (current_bucket == start_bucket && current_slot == start_slot) {
+            break;
+        }
+        if (hashtable[current_bucket][current_slot] == -1) {
+            break;
+        }
+        int key = hashtable[current_bucket][current_slot];
+        int ideal_bucket = key % bucket;
+        if (ideal_bucket != current_bucket) {
+            hashtable[current_bucket][current_slot] = -1;
+            insert(key);
+        }
+    }
+}
+
+void search(int key){
+    int temp =key % bucket;
+    for(int i=0; i < bucket-temp ; i++){
+        int current = (temp+i)%bucket;
+        for(int j=0 ; j< slot ; j++){
+            if(hashtable[current][j] == key){
+                printf("%d %d\n" , current , j);
+                return;
+            }
+        }
+    }
 }
 
 void delete(int key){
-    int index = hashFunction(key);
-    Node* temp = hashTable[index];
-    Node* prev = NULL;
-    while(temp){
-        if(temp->key == key){
-            if(prev){
-                prev->next = temp->next;
+    int temp = key % bucket;
+    for(int i=0 ; i<bucket-temp ; i++){
+        int current = (temp + i) % bucket;
+        for(int j=0 ; j<slot ; j++){
+            if(hashtable[current][j] == key){
+                hashtable[current][j] = -1;
+                bloomInsert(key);
+                rearrange_after_delete(current , j);
+                return;
             }
-            else{
-                hashTable[index] = temp->next;
-            }
-            free(temp);
-            return;
         }
-        prev = temp;
-        temp = temp->next;
+        temp +=1;
     }
 }
 
-void printHashTable(){
-    for(int i=0 ; i< MAX ; i++){
-        printf("Buckey %d" , i);
-        Node* temp = hashTable[i];
-        while(temp){
-            printf("(%d , %s)" , temp->key , temp->value);
-            temp = temp->next;
+int main(){
+    char string[100];
+    int data;
+    
+    //printf("yes");
+    while(scanf("%s " , string)==1){
+        if(string[0] == 'b'){
+            scanf("%d" , &bucket);
+            bloomFilter = (int*)malloc(bucket*sizeof(int));
+            //printf("bucket\n");
         }
-        printf("\n");
+        if(string[0] == 's' && string[1] == 'l'){
+            scanf("%d" , &slot);
+            create();
+        }
+        if(string[0] == 'i'){
+            scanf("%d" , &data);
+            insert(data);
+            //printf("insert %d \n" , data);
+        }
+        if(string[0] == 's' && string[1] == 'e'){
+            scanf("%d" , &data);
+            search(data);
+            //printf("search\n");
+            
+        }
+        if(string[0] == 'd'){
+            scanf("%d" , &data);
+            delete(data);
+            //printf("delete\n");
+        }
+        if(string[0] == 'e'){
+            break;
+        }
     }
-}
-
-int main() {
-    // 初始化哈希表
-    for (int i = 0; i < MAX; i++) {
-        hashTable[i] = NULL;
-    }
-
-    // 測試
-    insert(1, "One");
-    insert(11, "Eleven");
-    insert(21, "Twenty One");
-    insert(2, "Two");
-    insert(12, "Twelve");
-
-    printf("Hash Table:\n");
-    printHashTable();
-
-    printf("\nSearch for key 11: %s\n", search(11));
-    printf("Search for key 3: %s\n", search(3) ? search(3) : "Not found");
-
-    printf("\nDeleting key 11...\n");
-    delete (11);
-    printHashTable();
-
-    return 0;
 }

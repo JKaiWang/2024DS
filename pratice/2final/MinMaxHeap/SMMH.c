@@ -68,21 +68,20 @@ void deleteMin(SMMH* heap) {
         if(gc2 < last) {
             if(heap->data[gc1] > heap->data[gc2]) {
                 gc1 = gc2;
+            }
         }
-        }
-         
-         if(heap->data[gc1] < heap->data[current]){
+        if(heap->data[gc1] < heap->data[current]){
            swap(&heap->data[current],&heap->data[gc1]);
            current = gc1;  
-         }
-         else{
+        }
+        else{
             done = 1;
-         }
+        }
         
     }
 
     if((heap->data[current] > heap->data[current+1]) && (current+1) < heap->size) {
-            swap(&heap->data[current],&heap->data[current+1]); 
+        swap(&heap->data[current],&heap->data[current+1]); 
     }
         
 }
@@ -106,22 +105,19 @@ void deleteMax(SMMH* heap) {
         int gc2 = gc1 + 2;
 
         if(gc2 < last) {
-        if(heap->data[gc1] < heap->data[gc2]) {
-                gc1 = gc2;
+            if(heap->data[gc1] < heap->data[gc2]) {
+                    gc1 = gc2;
+            }
         }
-        }
-        
-         
-         if(heap->data[gc1] > heap->data[current]){
+        if(heap->data[gc1] > heap->data[current]){
            swap(&heap->data[current],&heap->data[gc1]);
            current = gc1;  
-         }
-         else{
+        }
+        else{
             done = 1;
-         }
+        }
         
     }
-
     if(heap->data[current] < heap->data[current-1]) {
             swap(&heap->data[current],&heap->data[current-1]); 
     }
@@ -134,23 +130,23 @@ int main(){
     char input[100];
     SMMH* heap = (SMMH*)malloc(sizeof(SMMH));
     heap->size = 1;
-
-    // Process commands
-    while (fgets(input, sizeof(input), stdin)) {
+    while(1){
         char command[100];
-        long value;
-
-        if (sscanf(input, "%s %ld", command, &value) == 1 && strcmp(command, "exit") == 0) {
+        int  value;
+        scanf("%s" , command);
+        if(strcmp("insert" , command) ==0){
+            scanf("%d" , &value);
+            insert(heap , value);
+        }
+        if(strcmp("delete-min" , command) == 0){
+            deleteMin(heap);
+        }
+        if(strcmp("delete-max" , command) ==0){
+            deleteMax(heap);
+        }
+        if(strcmp("exit" , command) ==0 ){
             break;
         }
-
-        if (strcmp(command, "insert") == 0) {
-            insert(heap, value);
-        } else if (strcmp(command, "delete-min") == 0) {
-            deleteMin(heap);
-        }else if (strcmp(command, "delete-max") == 0) {
-            deleteMax(heap);
-        }  
     }
 
     printf("- ");
